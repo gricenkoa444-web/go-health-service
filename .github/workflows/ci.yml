@@ -1,19 +1,24 @@
-name: CI
+name: CI 
+
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Сборка фартефакта
-        run: tar -czf app.tar.gz src/
+      - name: Установка GO
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
 
-      - name: Проверка переменных
-        env: 
-          NEXUS_URL: ${{ var.NEXUS_URL }}
-          NEXUS_USER: ${{ secrets.NEXUS_USER }}
-        run: echo "Целевой Nexus: $NEXUS_URL, пользователь задан"    
+      - name: Статический анализ
+        run: go vet ./...
+      
+      - name: Тесты
+        run: go test -race ./...      
