@@ -1,0 +1,19 @@
+name: CI
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Сборка фартефакта
+        run: tar -czf app.tar.gz src/
+
+      - name: Проверка переменных
+        env: 
+          NEXUS_URL: ${{ var.NEXUS_URL }}
+          NEXUS_USER: ${{ secrets.NEXUS_USER }}
+        run: echo "Целевой Nexus: $NEXUS_URL, пользователь задан"    
