@@ -7,9 +7,13 @@ import (
 	"os"
 )
 
+// buildVersion подставляется при сборке: go build -ldflags "-X main.buildVersion=..."
+var buildVersion = "dev"
+
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+	resp := map[string]string{"status": "ok", "version": buildVersion}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -25,6 +29,6 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-	log.Printf("listening on :%s", port)
+	log.Printf("version %s, listening on :%s", buildVersion, port)
 	log.Fatal(http.ListenAndServe(":"+port, newMux()))
 }
