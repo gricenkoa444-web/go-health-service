@@ -45,4 +45,41 @@ jobs:
         run: >
           curl --fail -u "${NEXUS_USER}:${NEXUS_PASSWORD}"
           --upload-file hello-world_${VERSION}.tar.gz
-          "${NEXUS_URL}/repository/${NEXUS_REPO}/${VERSION}/hello-world_${VERSION}.tar.gz"      
+          "${NEXUS_URL}/repository/${NEXUS_REPO}/${VERSION}/hello-world_${VERSION}.tar.gz"
+  deploy:
+    needs: release
+    runs-on: self-hosted
+    environment:
+      name: production
+    env:
+      NEXUS_URL: ${{ vars.NEXUS_URL }}
+      NEXUS_REPO: ${{ vars.NEXUS_REPO }}
+      NEXUS_USER: ${{ secrets.NEXUS_USER }}
+      NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+      VM_USER: ${{ vars.VM_USER }}
+      VM_IP: ${{ vars.VM_IP }}
+      SSH_PRIVATE_KEY_B64: ${{ secrets.SSH_PRIVATE_KEY_B64 }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Подготовка SSH-ключа
+        run: |
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY_B64}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Копирование файлов на ВМ
+        run: |
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./hello-world.service ${VM_USER}@${VM_IP}:/home/${VM_USER}/
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./deploy.sh ${VM_USER}@${VM_IP}:/home/${VM_USER}/
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${VM_USER}@${VM_IP} "chmod +x /home/${VM_USER}/deploy.sh"
+
+      - name: Запуск деплоя
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${VM_USER}@${VM_IP} \
+            "export VERSION=${VERSION} NEXUS_USER=${NEXUS_USER} NEXUS_PASSWORD=${NEXUS_PASSWORD} NEXUS_URL=${NEXUS_URL} NEXUS_REPO=${NEXUS_REPO}; /home/${VM_USER}/deploy.sh"
+
+      - name: Удаление ключа
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
